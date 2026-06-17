@@ -1,4 +1,3 @@
-
 import { readFileSync, writeFileSync } from 'node:fs';
 
 const SITE_URL = (process.env.WP_SITE_URL || '').trim().replace(/\/+$/, '');
@@ -34,10 +33,14 @@ for (const filePath of CHANGED_FILES) {
   const slug = filePath.replace('content/pages/', '').replace('.html', '');
   const title = slug.charAt(0).toUpperCase() + slug.slice(1).replace(/-/g, ' ');
 
+  // Read status from <!-- status: publish --> comment, default to draft
+  const statusMatch = html.match(/<!--\s*status:\s*(publish|draft|private)\s*-->/i);
+  const status = statusMatch ? statusMatch[1].toLowerCase() : 'draft';
+
   const entry = manifest[filePath];
   const wpId = entry?.wp_id;
 
-  const body = JSON.stringify({ title, content: html, status: 'publish' });
+  const body = JSON.stringify({ title, content: html, status });
 
   let url = `${SITE_URL}/wp-json/wp/v2/pages`;
   let method = 'POST';
@@ -46,7 +49,7 @@ for (const filePath of CHANGED_FILES) {
     method = 'POST';
   }
 
-  console.log(`${wpId ? 'Updating' : 'Creating'} page "${title}" (${filePath})...`);
+  console.log(`${wpId ? 'Updating' : 'Creating'} page "${title}" as ${status} (${filePath})...`);
 
   const res = await fetch(url, { method, headers: HEADERS, body });
   const data = await res.json();
